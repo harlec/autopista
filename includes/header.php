@@ -145,6 +145,10 @@
                 <i class="fas fa-building"></i>
                 <span>Proveedores</span>
             </a>
+			<a href="/modules/proveedores/plantillas.php" class="sidebar-link">
+               <i class="fas fa-magic"></i>
+               <span>Plantillas PDF</span>
+            </a>
             
             <div class="pt-4 mt-4 border-t border-gray-200">
                 <a href="#" class="sidebar-link">

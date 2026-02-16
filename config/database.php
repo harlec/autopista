@@ -2,9 +2,9 @@
 // Configuración de la base de datos
 class Database {
     private $host = "localhost";
-    private $db_name = "sistema_facturas";
-    private $username = "root";
-    private $password = "";
+    private $db_name = "admin_aunor";
+    private $username = "admin_aunor";
+    private $password = "ikm169uhn";
     public $conn;
 
     public function getConnection() {
