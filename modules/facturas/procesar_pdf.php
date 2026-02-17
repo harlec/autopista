@@ -108,10 +108,12 @@ try {
             'success' => true,
             'message' => 'Datos extraídos correctamente',
             'data' => $extracted_data,
+            'raw_text' => isset($extractor) ? mb_substr($extractor->getPdfText(), 0, 2000) : null,
             'debug' => [
                 'metodo' => $extracted_data['metodo'] ?? 'desconocido',
                 'plantilla_usada' => $extracted_data['plantilla_usada'] ?? null,
-                'tiene_composer' => $has_composer
+                'tiene_composer' => $has_composer,
+                'system_info' => isset($extractor) ? $extractor->getSystemInfo() : null
             ]
         ]);
     } else {
@@ -124,6 +126,7 @@ try {
                 'fecha_emision' => date('Y-m-d'),
                 'proveedor_id' => $proveedor_id
             ],
+            'raw_text' => isset($extractor) ? mb_substr($extractor->getPdfText(), 0, 2000) : null,
             'note' => $extracted_data['message'] ?? 'No se pudieron extraer datos automáticamente'
         ]);
     }
@@ -137,6 +140,7 @@ try {
             'fecha_emision' => date('Y-m-d'),
             'proveedor_id' => $proveedor_id
         ],
+        'raw_text' => isset($extractor) ? mb_substr($extractor->getPdfText(), 0, 2000) : null,
         'error' => $e->getMessage()
     ]);
 }

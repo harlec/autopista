@@ -25,41 +25,44 @@ class PDFExtractor {
         }
         
         try {
-            // Extraer texto usando poppler-utils o fallback a smalot/pdfparser
+            // Extraer texto (orientado a Poppler)
             $this->pdf_text = $this->extractTextFromPDF($pdf_path);
-            
+
             if (empty($this->pdf_text)) {
                 return [
                     'success' => false,
                     'error' => 'No se pudo extraer texto del PDF'
                 ];
             }
-            
+
             // Detectar moneda del documento
             $moneda = $this->detectCurrency();
-            
+
             // Si se especifica un proveedor, usar su plantilla
             if ($proveedor_id) {
                 $this->proveedor_id = $proveedor_id;
                 $result = $this->extractWithTemplate();
                 $result['moneda'] = $moneda;
+                $this->logExtraction($pdf_path, $result);
                 return $result;
             }
-            
+
             // Si no, intentar detectar proveedor y usar plantilla
             $detected_proveedor = $this->detectProveedor();
             if ($detected_proveedor) {
                 $this->proveedor_id = $detected_proveedor;
                 $result = $this->extractWithTemplate();
                 $result['moneda'] = $moneda;
+                $this->logExtraction($pdf_path, $result);
                 return $result;
             }
-            
+
             // Fallback a extracción genérica
             $result = $this->genericExtraction();
             $result['moneda'] = $moneda;
+            $this->logExtraction($pdf_path, $result);
             return $result;
-            
+
         } catch (Exception $e) {
             return [
                 'success' => false,
@@ -119,34 +122,17 @@ class PDFExtractor {
      * Extraer texto del PDF usando poppler-utils o librería PHP
      */
     private function extractTextFromPDF($pdf_path) {
-        // Método 1: Intentar usar pdftotext (poppler-utils)
-        if ($this->hasPoppler()) {
-            $text = $this->extractWithPoppler($pdf_path);
-            if (!empty($text)) {
-                return $text;
-            }
+        // Forzar uso de Poppler (pdftotext)
+        $text = $this->extractWithPoppler($pdf_path);
+        if (!empty($text)) {
+            return $text;
         }
-        
-        // Método 2: Intentar usar smalot/pdfparser
-        if (class_exists('\Smalot\PdfParser\Parser')) {
-            try {
-                $parser = new \Smalot\PdfParser\Parser();
-                $pdf = $parser->parseFile($pdf_path);
-                $text = $pdf->getText();
-                if (!empty($text)) {
-                    return $text;
-                }
-            } catch (Exception $e) {
-                // Continuar con método 3
-            }
-        }
-        
-        // Método 3: Usar exec con pdftotext directamente
+        // Si falla, intentar con exec directo
         $text = $this->extractWithExec($pdf_path);
         if (!empty($text)) {
             return $text;
         }
-        
+        // Si todo falla, retornar null
         return null;
     }
     
@@ -209,6 +195,25 @@ class PDFExtractor {
         }
         
         return null;
+    }
+
+    /**
+     * Guardar log de extracción para depuración
+     */
+    private function logExtraction($pdf_path, $data) {
+        $log_dir = __DIR__ . '/../assets/uploads/facturas';
+        if (!is_dir($log_dir)) {
+            @mkdir($log_dir, 0755, true);
+        }
+        $log_file = $log_dir . '/log_extraccion.txt';
+        $log = "==== " . date('Y-m-d H:i:s') . " ====\n";
+        $log .= "PDF: $pdf_path\n";
+        $log .= "--- TEXTO EXTRAÍDO ---\n";
+        $log .= $this->pdf_text . "\n";
+        $log .= "--- DATOS EXTRAÍDOS ---\n";
+        $log .= print_r($data, true) . "\n";
+        $log .= str_repeat("=", 40) . "\n";
+        @file_put_contents($log_file, $log, FILE_APPEND);
     }
     
     /**
