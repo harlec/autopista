@@ -67,6 +67,20 @@ composer require smalot/pdfparser
 
 Si no instalas Composer, el sistema funcionará igualmente, pero deberás ingresar los datos de las facturas manualmente.
 
+Si necesitas extraer texto de `PDF` escaneados (OCR), instala también Poppler y Tesseract en el servidor. El sistema intentará automáticamente usar `pdftotext` (Poppler) o `pdftoppm + tesseract` cuando `smalot/pdfparser` no encuentre texto.
+
+- Linux (Debian/Ubuntu):
+
+```bash
+sudo apt update && sudo apt install -y poppler-utils tesseract-ocr
+```
+
+- Windows:
+  - Instala Poppler for Windows (añade la carpeta `bin/` a `PATH`): https://blog.alivate.com.au/poppler-windows/
+  - Instala Tesseract for Windows y añade a `PATH`: https://github.com/tesseract-ocr/tesseract/releases
+
+Después de instalar estas utilidades reinicia el servidor web para que estén disponibles en PHP.
+
 ### 5. Acceder al sistema
 
 Abrir en el navegador:

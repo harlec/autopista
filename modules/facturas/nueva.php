@@ -82,6 +82,7 @@ include '../../includes/header.php';
                         <div>
                             <p class="font-medium text-green-800">Datos extraídos correctamente</p>
                             <p class="text-sm text-green-600">Verifica los datos en el formulario</p>
+                            <p id="extraction-meta" class="text-xs text-gray-500 mt-2">&nbsp;</p>
                         </div>
                     </div>
                 </div>
@@ -332,7 +333,12 @@ function extractPdfData() {
             if (data.data.archivo_pdf) {
                 document.getElementById('archivo_pdf').value = data.data.archivo_pdf;
             }
-            
+
+            // Mostrar método y texto reconocido (debug)
+            document.getElementById('extraction-meta').textContent = 'Método: ' + (data.method || 'desconocido');
+            console.log('PDF extraction method:', data.method);
+            console.log('PDF raw_text (truncated):', data.raw_text ? data.raw_text.substring(0,1000) : '');
+
             document.getElementById('extraction-status').classList.remove('hidden');
             showToast('Datos extraídos correctamente. Verifica la información.', 'success');
         } else {
