@@ -36,52 +36,89 @@ try {
     $archivo_pdf = !empty($_POST['archivo_pdf']) ? sanitizeInput($_POST['archivo_pdf']) : null;
     $estado = !empty($_POST['estado']) ? sanitizeInput($_POST['estado']) : 'pendiente';
     
-    // Verificar si ya existe una factura con el mismo número del mismo proveedor
-    $query = "SELECT id FROM facturas WHERE numero_factura = :numero_factura AND proveedor_id = :proveedor_id";
+    // Si llega un ID, actualizamos en lugar de insertar
+    $is_update = !empty($_POST['id']) && intval($_POST['id']) > 0;
+    $factura_id = $is_update ? intval($_POST['id']) : null;
+
+    // Verificar existencia de número duplicado para el mismo proveedor (excluir el registro actual en update)
+    $query = "SELECT id FROM facturas WHERE numero_factura = :numero_factura AND proveedor_id = :proveedor_id" . ($is_update ? " AND id != :id" : "");
     $stmt = $db->prepare($query);
     $stmt->bindParam(':numero_factura', $numero_factura);
     $stmt->bindParam(':proveedor_id', $proveedor_id);
+    if ($is_update) $stmt->bindParam(':id', $factura_id);
     $stmt->execute();
     
     if ($stmt->rowCount() > 0) {
         echo json_encode(['success' => false, 'message' => 'Ya existe una factura con ese número para este proveedor']);
         exit;
     }
-    
-    // Insertar factura
-    $query = "INSERT INTO facturas (
-        proveedor_id, categoria_id, numero_factura, fecha_emision, fecha_vencimiento,
-        monto_total, moneda, igv, subtotal, descripcion, archivo_pdf, estado
-    ) VALUES (
-        :proveedor_id, :categoria_id, :numero_factura, :fecha_emision, :fecha_vencimiento,
-        :monto_total, :moneda, :igv, :subtotal, :descripcion, :archivo_pdf, :estado
-    )";
-    
-    $stmt = $db->prepare($query);
-    
-    $stmt->bindParam(':proveedor_id', $proveedor_id);
-    $stmt->bindParam(':categoria_id', $categoria_id);
-    $stmt->bindParam(':numero_factura', $numero_factura);
-    $stmt->bindParam(':fecha_emision', $fecha_emision);
-    $stmt->bindParam(':fecha_vencimiento', $fecha_vencimiento);
-    $stmt->bindParam(':monto_total', $monto_total);
-    $stmt->bindParam(':moneda', $moneda);
-    $stmt->bindParam(':igv', $igv);
-    $stmt->bindParam(':subtotal', $subtotal);
-    $stmt->bindParam(':descripcion', $descripcion);
-    $stmt->bindParam(':archivo_pdf', $archivo_pdf);
-    $stmt->bindParam(':estado', $estado);
-    
-    if ($stmt->execute()) {
-        $factura_id = $db->lastInsertId();
-        
-        echo json_encode([
-            'success' => true,
-            'message' => 'Factura guardada correctamente',
-            'factura_id' => $factura_id
-        ]);
+
+    if ($is_update) {
+        // UPDATE
+        $query = "UPDATE facturas SET 
+            proveedor_id = :proveedor_id, categoria_id = :categoria_id, numero_factura = :numero_factura,
+            fecha_emision = :fecha_emision, fecha_vencimiento = :fecha_vencimiento, monto_total = :monto_total,
+            moneda = :moneda, igv = :igv, subtotal = :subtotal, descripcion = :descripcion, archivo_pdf = :archivo_pdf, estado = :estado
+            WHERE id = :id";
+
+        $stmt = $db->prepare($query);
+
+        $stmt->bindParam(':proveedor_id', $proveedor_id);
+        $stmt->bindParam(':categoria_id', $categoria_id);
+        $stmt->bindParam(':numero_factura', $numero_factura);
+        $stmt->bindParam(':fecha_emision', $fecha_emision);
+        $stmt->bindParam(':fecha_vencimiento', $fecha_vencimiento);
+        $stmt->bindParam(':monto_total', $monto_total);
+        $stmt->bindParam(':moneda', $moneda);
+        $stmt->bindParam(':igv', $igv);
+        $stmt->bindParam(':subtotal', $subtotal);
+        $stmt->bindParam(':descripcion', $descripcion);
+        $stmt->bindParam(':archivo_pdf', $archivo_pdf);
+        $stmt->bindParam(':estado', $estado);
+        $stmt->bindParam(':id', $factura_id);
+
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Factura actualizada correctamente', 'factura_id' => $factura_id]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Error al actualizar la factura']);
+        }
+
     } else {
-        echo json_encode(['success' => false, 'message' => 'Error al guardar la factura']);
+        // Insertar factura
+        $query = "INSERT INTO facturas (
+            proveedor_id, categoria_id, numero_factura, fecha_emision, fecha_vencimiento,
+            monto_total, moneda, igv, subtotal, descripcion, archivo_pdf, estado
+        ) VALUES (
+            :proveedor_id, :categoria_id, :numero_factura, :fecha_emision, :fecha_vencimiento,
+            :monto_total, :moneda, :igv, :subtotal, :descripcion, :archivo_pdf, :estado
+        )";
+        
+        $stmt = $db->prepare($query);
+        
+        $stmt->bindParam(':proveedor_id', $proveedor_id);
+        $stmt->bindParam(':categoria_id', $categoria_id);
+        $stmt->bindParam(':numero_factura', $numero_factura);
+        $stmt->bindParam(':fecha_emision', $fecha_emision);
+        $stmt->bindParam(':fecha_vencimiento', $fecha_vencimiento);
+        $stmt->bindParam(':monto_total', $monto_total);
+        $stmt->bindParam(':moneda', $moneda);
+        $stmt->bindParam(':igv', $igv);
+        $stmt->bindParam(':subtotal', $subtotal);
+        $stmt->bindParam(':descripcion', $descripcion);
+        $stmt->bindParam(':archivo_pdf', $archivo_pdf);
+        $stmt->bindParam(':estado', $estado);
+        
+        if ($stmt->execute()) {
+            $factura_id = $db->lastInsertId();
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Factura guardada correctamente',
+                'factura_id' => $factura_id
+            ]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Error al guardar la factura']);
+        }
     }
     
 } catch (PDOException $e) {

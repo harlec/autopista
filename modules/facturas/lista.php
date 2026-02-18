@@ -336,6 +336,11 @@ include '../../includes/header.php';
                                             <i class="fas fa-file-pdf"></i>
                                         </a>
                                     <?php endif; ?>
+
+                                    <!-- Ver (detalle) -->
+                                    <a href="ver.php?id=<?php echo $factura['id']; ?>" class="text-gray-600 hover:text-gray-900" title="Ver factura">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
                                     
                                     <a href="editar.php?id=<?php echo $factura['id']; ?>" 
                                        class="text-primary hover:text-primary-dark" title="Editar">

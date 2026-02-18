@@ -422,8 +422,10 @@ document.getElementById('factura-form').addEventListener('submit', function(e) {
     });
 });
 
-// Establecer fecha actual como fecha de emisión por defecto
-document.getElementById('fecha_emision').valueAsDate = new Date();
+// Establecer fecha actual como fecha de emisión por defecto (solo si no hay valor)
+if (!document.getElementById('fecha_emision').value) {
+    document.getElementById('fecha_emision').valueAsDate = new Date();
+}
 
 // Calcular fecha de vencimiento (30 días después)
 document.getElementById('fecha_emision').addEventListener('change', function() {
