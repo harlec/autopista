@@ -92,3 +92,18 @@ INSERT INTO proveedores (nombre, ruc, direccion, telefono, email, contacto) VALU
 ('Luz del Sur S.A.A.', '20331898008', 'Av. Canaval y Moreyra 380, San Isidro', '01-6175000', 'contacto@luzdelsur.com.pe', 'Atención al Cliente'),
 ('Telefónica del Perú S.A.A.', '20100017491', 'Av. Arequipa 1155, Lima', '01-1000', 'empresas@telefonica.com.pe', 'Empresas'),
 ('Sedapal', '20100152356', 'Av. Benavides 1180, Miraflores', '01-3175000', 'contacto@sedapal.com.pe', 'Atención Empresas');
+
+-- Tabla de usuarios (autenticación)
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    email VARCHAR(150) DEFAULT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin','user') DEFAULT 'admin',
+    is_active TINYINT(1) DEFAULT 1,
+    failed_attempts INT DEFAULT 0,
+    locked_until DATETIME DEFAULT NULL,
+    last_login DATETIME DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

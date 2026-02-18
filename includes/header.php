@@ -108,6 +108,9 @@
             }
         }
     </script>
+    <?php if (function_exists('csrf_token')): ?>
+        <meta name="csrf-token" content="<?php echo htmlspecialchars(csrf_token()); ?>">
+    <?php endif; ?>
 </head>
 <body class="bg-gray-50">
     
@@ -165,8 +168,14 @@
                     <i class="fas fa-user text-gray-600"></i>
                 </div>
                 <div class="flex-1">
-                    <p class="text-sm font-medium text-gray-800">Área TI</p>
-                    <p class="text-xs text-gray-500">Administrador</p>
+                    <?php if (function_exists('current_user') && current_user()): $__u = current_user(); ?>
+                        <p class="text-sm font-medium text-gray-800"><?php echo htmlspecialchars($__u['username']); ?></p>
+                        <p class="text-xs text-gray-500"><?php echo htmlspecialchars($__u['role']); ?></p>
+                        <a href="/logout.php" class="text-xs text-red-500 hover:underline mt-2 inline-block">Cerrar sesión</a>
+                    <?php else: ?>
+                        <p class="text-sm font-medium text-gray-800">Invitado</p>
+                        <a href="/login.php" class="text-xs text-gray-500 hover:underline mt-2 inline-block">Iniciar sesión</a>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

@@ -3,6 +3,13 @@ require_once '../../config/database.php';
 
 header('Content-Type: application/json');
 
+// CSRF header
+$csrfHeader = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+if (empty($csrfHeader) || !function_exists('verify_csrf_token') || !verify_csrf_token($csrfHeader)) {
+    echo json_encode(['success' => false, 'message' => 'Token CSRF inválido']);
+    exit;
+}
+
 $input = json_decode(file_get_contents('php://input'), true);
 
 if (!isset($input['id']) || !isset($input['estado'])) {

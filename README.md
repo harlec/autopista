@@ -81,6 +81,24 @@ sudo apt update && sudo apt install -y poppler-utils tesseract-ocr
 
 Después de instalar estas utilidades reinicia el servidor web para que estén disponibles en PHP.
 
+### 🔐 Autenticación y seguridad (nuevo)
+
+- Se agregó un sistema de login seguro con:
+  - `users` table (passwords guardados con `password_hash`)
+  - sesiones seguras (cookie `HttpOnly`, `SameSite=Lax`, `Secure` cuando aplica)
+  - bloqueo por intentos fallidos (5 intentos → 15 minutos)
+  - protección CSRF básica con token en formularios y cabeceras
+  - creación de administrador con `setup/create_admin.php`
+
+Cómo empezar:
+1. Ejecuta las migraciones / `database.sql` (incluye `users` table).
+2. Si no hay usuarios, abre en el navegador: `http://tu-dominio/setup/create_admin.php` y crea el admin.
+3. Accede a `http://tu-dominio/login.php`.
+
+Notas:
+- Todas las páginas de administración ahora requieren inicio de sesión.
+- Aún se pueden añadir mejoras (2FA, sesiones distribuidas, políticas de contraseña).
+
 ### 5. Acceder al sistema
 
 Abrir en el navegador:

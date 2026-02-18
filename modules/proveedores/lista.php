@@ -1,6 +1,8 @@
 <?php
 require_once '../../config/database.php';
 require_once '../../includes/functions.php';
+require_once '../../includes/auth.php';
+require_login();
 
 $page_title = 'Proveedores - Sistema de Facturas';
 $current_page = 'proveedores';
@@ -154,6 +156,7 @@ include '../../includes/header.php';
         </div>
         
         <form id="form-proveedor" class="p-6">
+                        <?php if (function_exists('csrf_token')): ?><input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>"><?php endif; ?>
             <input type="hidden" id="proveedor_id" name="id">
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -267,7 +270,10 @@ function eliminarProveedor(id) {
     if (confirm('¿Estás seguro de eliminar este proveedor? Se eliminarán todas sus facturas asociadas.')) {
         fetch('eliminar_proveedor.php', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : ''
+            },
             body: JSON.stringify({id: id})
         })
         .then(response => response.json())

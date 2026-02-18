@@ -1,11 +1,19 @@
 <?php
 require_once '../../config/database.php';
 require_once '../../includes/functions.php';
+require_once '../../includes/auth.php';
+require_login();
 
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'Método no permitido']);
+    exit;
+}
+
+// CSRF token
+if (empty($_POST['csrf_token']) || !function_exists('verify_csrf_token') || !verify_csrf_token($_POST['csrf_token'])) {
+    echo json_encode(['success' => false, 'message' => 'Token CSRF inválido']);
     exit;
 }
 

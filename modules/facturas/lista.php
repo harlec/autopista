@@ -1,6 +1,8 @@
 <?php
 require_once '../../config/database.php';
 require_once '../../includes/functions.php';
+require_once '../../includes/auth.php';
+require_login();
 
 $page_title = 'Lista de Facturas - Sistema de Facturas';
 $current_page = 'facturas';
@@ -394,7 +396,10 @@ function marcarPagada(id) {
         
         fetch('actualizar_estado.php', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : ''
+            },
             body: JSON.stringify({
                 id: id,
                 estado: 'pagada',
@@ -417,7 +422,10 @@ function eliminarFactura(id) {
     if (confirm('¿Estás seguro de eliminar esta factura? Esta acción no se puede deshacer.')) {
         fetch('eliminar_factura.php', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : ''
+            },
             body: JSON.stringify({id: id})
         })
         .then(response => response.json())

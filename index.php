@@ -1,6 +1,8 @@
 <?php
 require_once 'config/database.php';
 require_once 'includes/functions.php';
+require_once 'includes/auth.php';
+require_login();
 
 $page_title = 'Dashboard - Sistema de Facturas';
 $current_page = 'dashboard';

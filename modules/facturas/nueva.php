@@ -1,6 +1,8 @@
 <?php
 require_once '../../config/database.php';
 require_once '../../includes/functions.php';
+require_once '../../includes/auth.php';
+require_login();
 
 $page_title = 'Nueva Factura - Sistema de Facturas';
 $current_page = 'nueva-factura';
@@ -93,6 +95,7 @@ include '../../includes/header.php';
     <!-- Columna derecha: Formulario de datos -->
     <div class="lg:col-span-2">
         <form id="factura-form" class="space-y-6">
+            <?php if (function_exists('csrf_token')): ?><input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>"><?php endif; ?>
             
             <!-- Información del Proveedor -->
             <div class="card">

@@ -1,6 +1,8 @@
 <?php
 require_once '../../config/database.php';
 require_once '../../includes/functions.php';
+require_once '../../includes/auth.php';
+require_login();
 
 if (!isset($_GET['id']) || intval($_GET['id']) <= 0) {
     header('Location: lista.php');
