@@ -323,10 +323,33 @@ function extractPdfData() {
             // Rellenar campos con datos extraídos
             if (data.data.numero_factura) {
                 document.getElementById('numero_factura').value = data.data.numero_factura;
+            } else if (selectedFile && !document.getElementById('numero_factura').value) {
+                // Intento rápido de extraer número desde el nombre del archivo
+                const nameMatch = selectedFile.name.match(/([A-Z0-9]{1,4}[-_]\d{6,12})/i);
+                if (nameMatch) document.getElementById('numero_factura').value = nameMatch[1].replace(/[_\s]/g, '');
             }
+
             if (data.data.fecha_emision) {
                 document.getElementById('fecha_emision').value = data.data.fecha_emision;
             }
+
+            // Fecha de vencimiento: preferir valor extraído, sino calcular desde fecha_emision, sino intentar filename
+            if (data.data.fecha_vencimiento) {
+                document.getElementById('fecha_vencimiento').value = data.data.fecha_vencimiento;
+            } else if (data.data.fecha_emision) {
+                const em = new Date(data.data.fecha_emision);
+                em.setDate(em.getDate() + 30);
+                document.getElementById('fecha_vencimiento').valueAsDate = em;
+            } else if (selectedFile && !document.getElementById('fecha_vencimiento').value) {
+                const fnameDate = (selectedFile.name.match(/(20\d{6})/) || [])[1];
+                if (fnameDate) {
+                    const y = fnameDate.substr(0,4), m = fnameDate.substr(4,2)-1, d = fnameDate.substr(6,2);
+                    const em2 = new Date(y, m, d);
+                    em2.setDate(em2.getDate() + 30);
+                    document.getElementById('fecha_vencimiento').valueAsDate = em2;
+                }
+            }
+
             if (data.data.monto_total) {
                 document.getElementById('monto_total').value = data.data.monto_total;
             }

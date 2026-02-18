@@ -136,12 +136,13 @@ function extractPdfData($pdf_path) {
 
     // Mapear campos usando los helpers existentes
     $data = [
-        'numero_factura' => extractInvoiceNumber($text),
-        'fecha_emision'   => extractDateFromText($text),
-        'ruc'             => extractRUCFromText($text),
-        'total'           => extractAmountFromText($text),
-        'raw_text'        => $text,
-        'method'          => $method
+        'numero_factura'   => extractInvoiceNumber($text),
+        'fecha_emision'    => extractDateFromText($text),
+        'fecha_vencimiento'=> extractDueDateFromText($text),
+        'ruc'              => extractRUCFromText($text),
+        'total'            => extractAmountFromText($text),
+        'raw_text'         => $text,
+        'method'           => $method
     ];
 
     return $data;
@@ -185,9 +186,14 @@ function extractRUCFromText($text) {
 }
 
 function extractDateFromText($text) {
-    // Formatos numéricos (DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD)
+    // Formatos numéricos (YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY, YYYYMMDD)
     if (preg_match('/(\d{4})[\-\/](\d{1,2})[\-\/](\d{1,2})/', $text, $m)) {
         return sprintf('%04d-%02d-%02d', $m[1], $m[2], $m[3]);
+    }
+
+    if (preg_match('/(\d{4})(0[1-9]|1[0-2])([0-3][0-9])/', $text, $m3)) {
+        // Formato continuo YYYYMMDD
+        return sprintf('%04d-%02d-%02d', $m3[1], $m3[2], $m3[3]);
     }
 
     if (preg_match('/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/', $text, $matches)) {
@@ -206,6 +212,43 @@ function extractDateFromText($text) {
         $year = intval($m2[3]);
         $month = $months[$monthName] ?? null;
         if ($month) return sprintf('%04d-%02d-%02d', $year, $month, $day);
+    }
+
+    return null;
+}
+
+/**
+ * Extrae la fecha de vencimiento buscando palabras clave (VENCE, VENCIMIENTO, FECHA DE VENCIMIENTO)
+ * Retorna fecha en formato YYYY-MM-DD o null.
+ */
+function extractDueDateFromText($text) {
+    $patterns = [
+        '/VENCIM(?:IE?NTO)?[\s\:]*[:\-\s]{0,5}(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/i',
+        '/VENCE[\s\:]*[:\-\s]{0,5}(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/i',
+        '/FECHA DE VENCIM(?:IE?NTO)?[\s\:]*[:\-\s]{0,5}(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/i',
+        '/VENCIMIENTO[\s\:]*[:\-\s]{0,5}(\d{4}[\-\/]\d{2}[\-\/]\d{2})/i'
+    ];
+
+    foreach ($patterns as $p) {
+        if (preg_match($p, $text, $m)) {
+            $d = extractDateFromText($m[1]);
+            if ($d) return $d;
+        }
+    }
+
+    // Si no se encuentra con palabras clave, intentar detectar dos fechas y asumir la más grande (vencimiento suele ser posterior)
+    if (preg_match_all('/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/', $text, $matches)) {
+        $dates = array_map('extractDateFromText', $matches[1]);
+        $dates = array_filter($dates);
+        if (count($dates) >= 2) {
+            sort($dates);
+            return end($dates); // la más reciente
+        }
+    }
+
+    // Buscar YYYYMMDD cercano a la palabra "venc" en el texto
+    if (preg_match('/venc[ai][c]?[^\d]{0,40}(20\d{6})/i', $text, $m2)) {
+        return extractDateFromText($m2[1]);
     }
 
     return null;
