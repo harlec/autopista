@@ -148,11 +148,25 @@ function extractPdfData($pdf_path) {
     return $data;
 }
 
+function isLikelyInvoiceNumber($s) {
+    if (empty($s)) return false;
+    $s = trim($s);
+    // Patrones típicos: S002-209403425, F001-00001234, 037-2002, etc.
+    $patterns = [
+        '/^[A-Z]?\d{3}[-\/]\d{4,12}$/i',    // F001-00001234, 037-2002
+        '/^S\d{3}[-\/]\d{6,12}$/i',         // S002-209403425
+        '/^[A-Z0-9\-\/]{5,30}$/'
+    ];
+    foreach ($patterns as $p) if (preg_match($p, $s)) return true;
+    return false;
+}
+
 function extractInvoiceNumber($text) {
     // Intentar varios patrones comunes para número/serie de factura (ordenados por prioridad)
     $patterns = [
-        '/([FfBbEe]\s?\d{3}[-\s]?\d{4,8})/',                  // F001-00001234 / F001 00001234
-        '/\b(\d{3}[-]\d{4,8})\b/',                            // 001-00001234 (fallback)
+        '/(S\d{3}[-_]\d{6,12})/i',                  // S002-209403425
+        '/([FfBbEe]\s?\d{3}[-\s]?\d{4,8})/',      // F001-00001234 / F001 00001234
+        '/\b(\d{3}[-]\d{4,8})\b/',                // 001-00001234 (fallback)
         '/(?:FACTURA(?: ELECTR[OÓ]NICA)?)[^\n\r\dA-Z\-]*([A-Z0-9\-\/]{3,30}\d+)/i',
         '/\bN(?:°|º|ro|RO|º)\.?\s*[:\-\s]*([A-Z0-9\-\/]{3,30})/i',
         '/SERIE[\s:\-]*([A-Z0-9\-\/]{1,12})/i'
@@ -163,8 +177,15 @@ function extractInvoiceNumber($text) {
             $candidate = trim($m[1]);
             // Normalizar espacios y guiones
             $candidate = preg_replace('/\s+/', '', $candidate);
-            return $candidate;
+            if (isLikelyInvoiceNumber($candidate)) return $candidate;
         }
+    }
+
+    // Como último recurso, devolver la primera secuencia tipo xxx-xxxx
+    if (preg_match('/(\d{2,4}[-_]\d{3,12})/', $text, $m2)) {
+        $cand = preg_replace('/\s+/', '', $m2[1]);
+        if (isLikelyInvoiceNumber($cand)) return $cand;
+        return $cand;
     }
 
     return null;
@@ -185,19 +206,30 @@ function extractRUCFromText($text) {
     return null;
 }
 
+function isValidYmd($d) {
+    if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $d, $m)) return false;
+    $y = intval($m[1]); $mm = intval($m[2]); $dd = intval($m[3]);
+    // Años plausibles: 2000 .. currentYear+5
+    $current = intval(date('Y'));
+    if ($y < 2000 || $y > ($current + 5)) return false;
+    return checkdate($mm, $dd, $y);
+}
+
 function extractDateFromText($text) {
     // Formatos numéricos (YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY, YYYYMMDD)
+    $candidates = [];
+
     if (preg_match('/(\d{4})[\-\/](\d{1,2})[\-\/](\d{1,2})/', $text, $m)) {
-        return sprintf('%04d-%02d-%02d', $m[1], $m[2], $m[3]);
+        $candidates[] = sprintf('%04d-%02d-%02d', $m[1], $m[2], $m[3]);
     }
 
     if (preg_match('/(\d{4})(0[1-9]|1[0-2])([0-3][0-9])/', $text, $m3)) {
         // Formato continuo YYYYMMDD
-        return sprintf('%04d-%02d-%02d', $m3[1], $m3[2], $m3[3]);
+        $candidates[] = sprintf('%04d-%02d-%02d', $m3[1], $m3[2], $m3[3]);
     }
 
     if (preg_match('/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/', $text, $matches)) {
-        return sprintf('%04d-%02d-%02d', $matches[3], $matches[2], $matches[1]);
+        $candidates[] = sprintf('%04d-%02d-%02d', $matches[3], $matches[2], $matches[1]);
     }
 
     // Fechas con nombre de mes en español: e.g. "13 de abril de 2025"
@@ -211,7 +243,12 @@ function extractDateFromText($text) {
         $monthName = strtolower($m2[2]);
         $year = intval($m2[3]);
         $month = $months[$monthName] ?? null;
-        if ($month) return sprintf('%04d-%02d-%02d', $year, $month, $day);
+        if ($month) $candidates[] = sprintf('%04d-%02d-%02d', $year, $month, $day);
+    }
+
+    // Retornar la primera candidata válida
+    foreach ($candidates as $cand) {
+        if (isValidYmd($cand)) return $cand;
     }
 
     return null;
@@ -232,7 +269,7 @@ function extractDueDateFromText($text) {
     foreach ($patterns as $p) {
         if (preg_match($p, $text, $m)) {
             $d = extractDateFromText($m[1]);
-            if ($d) return $d;
+            if ($d && isValidYmd($d)) return $d;
         }
     }
 
@@ -242,15 +279,42 @@ function extractDueDateFromText($text) {
         $dates = array_filter($dates);
         if (count($dates) >= 2) {
             sort($dates);
-            return end($dates); // la más reciente
+            $cand = end($dates);
+            if (isValidYmd($cand)) return $cand;
         }
     }
 
     // Buscar YYYYMMDD cercano a la palabra "venc" en el texto
     if (preg_match('/venc[ai][c]?[^\d]{0,40}(20\d{6})/i', $text, $m2)) {
-        return extractDateFromText($m2[1]);
+        $d = extractDateFromText($m2[1]);
+        if ($d && isValidYmd($d)) return $d;
     }
 
+    return null;
+}
+
+function extractDateNearKeyword($text, $keywords = ['FECHA','EMIS','EMISION','EMITIDO','DATE']) {
+    // Buscar palabras clave y dentro de un rango cercano intentar extraer fechas válidas
+    $textU = strtoupper($text);
+    foreach ($keywords as $kw) {
+        $pos = strpos($textU, strtoupper($kw));
+        if ($pos !== false) {
+            $snippet = substr($text, $pos, 200); // buscar 200 chars a partir de la keyword
+            // Intentar formatos comunes
+            if (preg_match('/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/', $snippet, $m)) {
+                $d = extractDateFromText($m[1]);
+                if ($d && isValidYmd($d)) return $d;
+            }
+            if (preg_match('/(20\d{6})/', $snippet, $m2)) {
+                $d = extractDateFromText($m2[1]);
+                if ($d && isValidYmd($d)) return $d;
+            }
+            if (preg_match('/(\d{4}[\-\/]\d{2}[\-\/]\d{2})/', $snippet, $m3)) {
+                $d = extractDateFromText($m3[1]);
+                if ($d && isValidYmd($d)) return $d;
+            }
+        }
+    }
     return null;
 }
 

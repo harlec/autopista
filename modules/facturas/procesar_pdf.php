@@ -53,65 +53,62 @@ if (isset($extracted['error'])) {
     exit;
 }
 
-// Fallback adicional: intentar extraer del nombre de archivo original si faltan campos
-$original_name = isset(
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    $file['name']) ? $file['name'] : '';
+// Saneos y mejoras sobre lo extraído
+$original_name = isset($file['name']) ? $file['name'] : '';
 
-if (empty($extracted['numero_factura'])) {
-    if (preg_match('/([A-Z0-9]{1,4}[-_]\d{6,12})/i', $original_name, $m)) {
-        $extracted['numero_factura'] = preg_replace('/[\s_]+/', '', $m[1]);
-    } elseif (preg_match('/(S\d{3}[-_]\d{6,12})/i', $original_name, $m2)) {
+// Si el número extraído parece improbable, preferir filename si contiene patrón claro
+if (!empty($extracted['numero_factura'])) {
+    if (!function_exists('isLikelyInvoiceNumber') || !isLikelyInvoiceNumber($extracted['numero_factura'])) {
+        if (preg_match('/(S\d{3}[-_]\d{6,12})/i', $original_name, $mf)) {
+            $extracted['numero_factura'] = $mf[1];
+        }
+    }
+} else {
+    if (preg_match('/(S\d{3}[-_]\d{6,12})/i', $original_name, $m2)) {
         $extracted['numero_factura'] = $m2[1];
+    } elseif (preg_match('/([A-Z0-9]{1,4}[-_]\d{6,12})/i', $original_name, $m3)) {
+        $extracted['numero_factura'] = preg_replace('/[\s_]+/', '', $m3[1]);
     }
 }
 
-if (empty($extracted['fecha_emision'])) {
-    if (preg_match('/(20\d{6})/', $original_name, $m3)) {
-        $maybe = extractDateFromText($m3[1]);
-        if ($maybe) $extracted['fecha_emision'] = $maybe;
-    } elseif (preg_match('/(\d{1,2}[\-\/]\d{1,2}[\-\/]20\d{2})/', $original_name, $m4)) {
-        $maybe = extractDateFromText($m4[1]);
-        if ($maybe) $extracted['fecha_emision'] = $maybe;
+// Fecha de emisión: preferir valor válido; si no existe, buscar cerca de palabras clave en el texto; si sigue sin existir, intentar filename
+if (empty($extracted['fecha_emision']) || !function_exists('isValidYmd') || !isValidYmd($extracted['fecha_emision'])) {
+    $candidate = null;
+    if (!empty($extracted['raw_text'])) {
+        $candidate = extractDateNearKeyword($extracted['raw_text'], ['FECHA','EMIS','EMISION','EMITIDO']);
     }
+    if (!$candidate && preg_match('/(20\d{6})/', $original_name, $mf2)) {
+        $candidate = extractDateFromText($mf2[1]);
+    }
+    if ($candidate) $extracted['fecha_emision'] = $candidate;
 }
 
-if (empty($extracted['fecha_vencimiento'])) {
-    if (preg_match('/_?(20\d{6})/', $original_name, $m5)) {
-        $maybe = extractDateFromText($m5[1]);
-        if ($maybe) $extracted['fecha_vencimiento'] = $maybe;
+// Fecha de vencimiento: validar y, si inválida, intentar palabra clave o filename; si sigue sin existir, calcular +30 días
+if (empty($extracted['fecha_vencimiento']) || !function_exists('isValidYmd') || !isValidYmd($extracted['fecha_vencimiento'])) {
+    $candidate = null;
+    if (!empty($extracted['raw_text'])) {
+        $candidate = extractDueDateFromText($extracted['raw_text']);
     }
+    if (!$candidate && preg_match('/_?(20\d{6})/', $original_name, $mf3)) {
+        $candidate = extractDateFromText($mf3[1]);
+    }
+    $extracted['fecha_vencimiento'] = $candidate ?: null;
 }
 
-// Si aún falta fecha de vencimiento, calcular a +30 días desde fecha_emision
+// Si aún falta fecha de vencimiento, calcular a +30 días desde fecha_emision (si es válida)
 $computed_venc = null;
-if (!empty($extracted['fecha_emision'])) {
+if (!empty($extracted['fecha_emision']) && function_exists('isValidYmd') && isValidYmd($extracted['fecha_emision'])) {
     $computed_venc = date('Y-m-d', strtotime($extracted['fecha_emision'] . ' +30 days'));
 }
 
+// Validar final de campos antes de devolver
+$final_fecha_emision = (!empty($extracted['fecha_emision']) && isValidYmd($extracted['fecha_emision'])) ? $extracted['fecha_emision'] : null;
+$final_fecha_venc = (!empty($extracted['fecha_vencimiento']) && isValidYmd($extracted['fecha_vencimiento'])) ? $extracted['fecha_vencimiento'] : ($computed_venc ?: null);
+
 $extracted_data = [
     'numero_factura' => $extracted['numero_factura'] ?? null,
-    'fecha_emision' => $extracted['fecha_emision'] ?? null,
-    'fecha_vencimiento' => $extracted['fecha_vencimiento'] ?? $computed_venc,
+    'fecha_emision' => $final_fecha_emision,
+    'fecha_vencimiento' => $final_fecha_venc,
     'ruc' => $extracted['ruc'] ?? null,
     'monto_total' => $extracted['total'] ?? null,
     'archivo_pdf' => $upload_result['filename']
